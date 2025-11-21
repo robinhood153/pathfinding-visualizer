@@ -125,4 +125,5 @@ jobs:
 
       - name: Upload EXE to S3
         run: |
-          aws s3 cp artifacts/windows-exe/ s3://${{ secrets.S3_BUCKET }}/ --recursive --exclude "*" --include "*.exe"
+          aws s3 cp "artifacts/windows-exe/" "s3://${{ secrets.S3_BUCKET }}/" --recursive --exclude "*" --include "*.exe"
+
