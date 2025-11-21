@@ -1,0 +1,114 @@
+name: Python Pathfinding Visualizer - Full CI/CD
+
+on:
+  push:
+    branches: ["main"]
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  # ----------------------------
+  # 1) LINUX BUILD + ZIP PACKAGE
+  # ----------------------------
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Syntax Check
+        run: python -m py_compile $(git ls-files '*.py')
+
+      - name: Create ZIP Package
+        run: |
+          zip -r pathfinding_visualizer.zip . \
+            -x "__pycache__/*" \
+            -x "dist/*" \
+            -x "build/*" \
+            -x ".git/*" \
+            -x "venv/*"
+
+      - name: Upload ZIP Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-zip
+          path: pathfinding_visualizer.zip
+
+  # ----------------------------
+  # 2) WINDOWS BUILD (EXE)
+  # ----------------------------
+  build-windows:
+    runs-on: windows-latest
+    needs: build-linux
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Requirements + PyInstaller
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build EXE using PyInstaller
+        run: |
+          pyinstaller --noconsole --onefile run.pyw
+
+      - name: Prepare Output Folder
+        run: |
+          mkdir output || exit 0
+          copy dist\*.exe output\
+
+      - name: Upload Windows EXE Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: output/
+
+  # ----------------------------
+  # 3) RELEASE (ONLY WHEN TAG IS PUSHED)
+  # ----------------------------
+  release:
+    needs: [build-linux, build-windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Linux ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-zip
+          path: artifacts
+
+      - name: Download Windows EXE
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
