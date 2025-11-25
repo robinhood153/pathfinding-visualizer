@@ -20,15 +20,13 @@ spec:
       volumeMounts:
         - name: docker-graph-storage
           mountPath: /var/lib/docker
-
     - name: sonar-scanner
       image: sonarsource/sonar-scanner-cli:latest
-      command: [ "cat" ]
+      command: ["cat"]
       tty: true
-
     - name: kubectl
       image: bitnami/kubectl:latest
-      command: [ "cat" ]
+      command: ["cat"]
       tty: true
       volumeMounts:
         - name: kubeconfig-secret
@@ -52,15 +50,10 @@ spec:
     }
 
     stages {
-
         stage('Docker Build') {
             steps {
                 container('dind') {
                     sh '''
-                        echo ">>> Cleaning stale Docker PID"
-                        rm -f /var/run/docker.pid
-                        echo ">>> Starting Docker daemon"
-                        dockerd &
                         echo ">>> Waiting for Docker daemon to be ready"
                         while (! docker info > /dev/null 2>&1); do
                           echo "Docker daemon not ready, sleeping..."
