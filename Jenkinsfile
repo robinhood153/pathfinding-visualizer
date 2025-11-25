@@ -136,13 +136,15 @@ spec:
         stage("Deploy to Kubernetes") {
             steps {
                 container('kubectl') {
-                    sh '''
-                        echo "Applying Kubernetes deployment..."
-                        kubectl apply -f pathfinder-deployment.yaml -n ${NAMESPACE}
+                    dir("k8s-deployment") {   // <-- FIXED FOLDER PATH
+                        sh '''
+                            echo "Applying Kubernetes deployment..."
+                            kubectl apply -f pathfinder-deployment.yaml -n ${NAMESPACE}
 
-                        echo "Checking rollout..."
-                        kubectl rollout status deployment/pathfinder-deployment -n ${NAMESPACE}
-                    '''
+                            echo "Checking rollout..."
+                            kubectl rollout status deployment/pathfinder-deployment -n ${NAMESPACE}
+                        '''
+                    }
                 }
             }
         }
