@@ -20,10 +20,12 @@ spec:
       volumeMounts:
         - name: docker-graph-storage
           mountPath: /var/lib/docker
+
     - name: sonar-scanner
       image: sonarsource/sonar-scanner-cli:latest
       command: ["cat"]
       tty: true
+
     - name: kubectl
       image: bitnami/kubectl:latest
       command: ["cat"]
@@ -31,13 +33,14 @@ spec:
       volumeMounts:
         - name: kubeconfig-secret
           mountPath: /kube
+
   volumes:
     - name: docker-graph-storage
       emptyDir: {}
     - name: kubeconfig-secret
       secret:
         secretName: kubeconfig-secret
-'''        
+'''
         }
     }
 
@@ -47,9 +50,13 @@ spec:
         FULL_IMAGE = "${REGISTRY}/${IMAGE_NAME}"
         NAMESPACE = "2401019"
         SONAR_KEY = "2401019-pathfinding-visulaizer"
+
+        // Prevent DockerHub rate limit
+        DOCKER_BUILD_ARG = "--build-arg NODE_MIRROR=ghcr.io/library/node:18-alpine"
     }
 
     stages {
+
         stage('Docker Build') {
             steps {
                 container('dind') {
@@ -59,8 +66,9 @@ spec:
                           echo "Docker daemon not ready, sleeping..."
                           sleep 1
                         done
-                        echo ">>> Building Docker Image"
-                        docker build -t ${FULL_IMAGE}:latest .
+
+                        echo ">>> Building Docker Image (using GHCR node mirror)"
+                        docker build ${DOCKER_BUILD_ARG} -t ${FULL_IMAGE}:latest .
                         docker images
                     '''
                 }
