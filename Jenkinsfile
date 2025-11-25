@@ -9,55 +9,37 @@ metadata:
     ci: jenkins
 spec:
   containers:
-
-    - name: kaniko
-      image: gcr.io/kaniko-project/executor:latest
-      command:
-        - /busybox/cat
-      tty: true
+    - name: dind
+      image: docker:dind
+      securityContext:
+        privileged: true
+      args: ["--storage-driver=overlay2"]
+      env:
+        - name: DOCKER_TLS_CERTDIR
+          value: ""
       volumeMounts:
-        - name: kaniko-secret
-          mountPath: /kaniko/.docker
-        - name: workspace-volume
-          mountPath: /home/jenkins/agent
+        - name: docker-graph-storage
+          mountPath: /var/lib/docker
 
     - name: sonar-scanner
       image: sonarsource/sonar-scanner-cli:latest
-      command: ["cat"]
+      command: [ "cat" ]
       tty: true
-      volumeMounts:
-        - name: workspace-volume
-          mountPath: /home/jenkins/agent
 
     - name: kubectl
       image: bitnami/kubectl:latest
-      command: ["cat"]
+      command: [ "cat" ]
       tty: true
       volumeMounts:
         - name: kubeconfig-secret
           mountPath: /kube
-        - name: workspace-volume
-          mountPath: /home/jenkins/agent
-
-    - name: jnlp
-      image: jenkins/inbound-agent:latest
-      args: ["$(JENKINS_SECRET)", "$(JENKINS_NAME)"]
-      volumeMounts:
-        - name: workspace-volume
-          mountPath: /home/jenkins/agent
-
   volumes:
-    - name: kaniko-secret
-      secret:
-        secretName: nexus-secret
-
+    - name: docker-graph-storage
+      emptyDir: {}
     - name: kubeconfig-secret
       secret:
         secretName: kubeconfig-secret
-
-    - name: workspace-volume
-      emptyDir: {}
-'''
+'''        
         }
     }
 
@@ -71,16 +53,13 @@ spec:
 
     stages {
 
-        stage('Build Image with Kaniko') {
+        stage('Docker Build') {
             steps {
-                container('kaniko') {
+                container('dind') {
                     sh '''
-                        echo ">>> Building & Pushing using Kaniko"
-                        /kaniko/executor \
-                          --context `pwd` \
-                          --dockerfile `pwd`/Dockerfile \
-                          --destination=${FULL_IMAGE}:v1 \
-                          --skip-tls-verify
+                        echo ">>> Building Docker Image"
+                        docker build -t ${FULL_IMAGE}:latest .
+                        docker images
                     '''
                 }
             }
@@ -99,6 +78,23 @@ spec:
                               -Dsonar.login=$SONAR_TOKEN
                         '''
                     }
+                }
+            }
+        }
+
+        stage('Push to Nexus') {
+            steps {
+                container('dind') {
+                    sh '''
+                        echo ">>> Logging into Nexus"
+                        docker login ${REGISTRY} -u admin -p Changeme@2025
+
+                        echo ">>> Tagging image"
+                        docker tag ${FULL_IMAGE}:latest ${FULL_IMAGE}:v1
+
+                        echo ">>> Pushing image"
+                        docker push ${FULL_IMAGE}:v1
+                    '''
                 }
             }
         }
