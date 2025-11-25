@@ -68,7 +68,7 @@ spec:
         stage('SonarQube Analysis') {
             steps {
                 container('sonar-scanner') {
-                    withCredentials([string(credentialsId: 'sonar-token-2401019', variable: 'SONAR_TOKEN')]) {
+                    withCredentials([string(credentialsId: '2401019-pathfinding-visulaizer', variable: 'SONAR_TOKEN')]) {
                         sh '''
                             echo ">>> Running SonarQube Scan"
                             sonar-scanner \
