@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pathfinder-deployment
+  labels:
+    app: pathfinder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pathfinder
+  template:
+    metadata:
+      labels:
+        app: pathfinder
+    spec:
+      containers:
+        - name: pathfinder
+          image: pathfinding-visualizer:latest
+          ports:
+            - containerPort: 3000

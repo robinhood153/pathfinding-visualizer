@@ -4,9 +4,9 @@ export default function Footer() {
 	const year = new Date().getFullYear();
 	return (
 		<footer id="footer">
-			<p>&copy; {year} Tyler Mommsen</p>
+			<p>&copy; {year} Aditya B</p>
 			<a
-				href="https://github.com/TylerMommsen/pathfinding-visualizer"
+				href="https://github.com/robinhood153/pathfinding-visualizer"
 				target="_blank"
 				rel="noreferrer noopener"
 			>
