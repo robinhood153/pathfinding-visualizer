@@ -1,24 +1,24 @@
-# Use GitHub Container Registry to avoid Docker Hub rate limits
-ARG NODE_IMAGE=ghcr.io/library/node:18-alpine
-FROM ${NODE_IMAGE}
+# Use Node.js 18 Alpine as the base image
+FROM node:18-alpine
 
-# Set working directory
+# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy package.json and package-lock.json (if available)
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy rest of the project files
+# Copy the rest of the application code
 COPY . .
 
-# Build the Next.js app
+# Build the Next.js application
 RUN npm run build
 
-# Expose the port Next.js runs on
+# Expose port 3000
 EXPOSE 3000
 
-# Start the Next.js production server
-CMD ["npm", "run", "start"]
+# Start the application
+CMD ["npm", "start"]
+

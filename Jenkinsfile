@@ -4,123 +4,148 @@ pipeline {
             yaml '''
 apiVersion: v1
 kind: Pod
-metadata:
-  labels:
-    ci: jenkins
 spec:
   containers:
-    - name: dind
-      image: docker:dind
-      securityContext:
-        privileged: true
-      args: ["--storage-driver=overlay2"]
-      env:
-        - name: DOCKER_TLS_CERTDIR
-          value: ""
-      volumeMounts:
-        - name: docker-graph-storage
-          mountPath: /var/lib/docker
 
-    - name: sonar-scanner
-      image: sonarsource/sonar-scanner-cli:latest
-      command: ["cat"]
-      tty: true
+  - name: sonar-scanner
+    image: sonarsource/sonar-scanner-cli
+    command: ["cat"]
+    tty: true
 
-    - name: kubectl
-      image: bitnami/kubectl:latest
-      command: ["cat"]
-      tty: true
-      volumeMounts:
-        - name: kubeconfig-secret
-          mountPath: /kube
+  - name: kubectl
+    image: bitnami/kubectl:latest
+    command: ["cat"]
+    tty: true
+    securityContext:
+      runAsUser: 0
+    env:
+    - name: KUBECONFIG
+      value: /kube/config
+    volumeMounts:
+    - name: kubeconfig-secret
+      mountPath: /kube/config
+      subPath: kubeconfig
+
+  - name: dind
+    image: docker:dind
+    securityContext:
+      privileged: true
+    env:
+    - name: DOCKER_TLS_CERTDIR
+      value: ""
+    args:
+    - "--storage-driver=overlay2"
+    volumeMounts:
+    - name: docker-config
+      mountPath: /etc/docker/daemon.json
+      subPath: daemon.json
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+
+  - name: jnlp
+    image: jenkins/inbound-agent:3309.v27b_9314fd1a_4-1
+    env:
+    - name: JENKINS_AGENT_WORKDIR
+      value: "/home/jenkins/agent"
+    volumeMounts:
+    - mountPath: "/home/jenkins/agent"
+      name: workspace-volume
 
   volumes:
-    - name: docker-graph-storage
-      emptyDir: {}
-    - name: kubeconfig-secret
-      secret:
-        secretName: kubeconfig-secret
+  - name: workspace-volume
+    emptyDir: {}
+  - name: docker-config
+    configMap:
+      name: docker-daemon-config
+  - name: kubeconfig-secret
+    secret:
+      secretName: kubeconfig-secret
 '''
         }
     }
 
     environment {
         REGISTRY = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
-        IMAGE_NAME = "my-repository/pathfinder"
-        FULL_IMAGE = "${REGISTRY}/${IMAGE_NAME}"
+        IMAGE_REPO = "my-repository/pathfinder"
+        FULL_IMAGE = "${REGISTRY}/${IMAGE_REPO}"
         NAMESPACE = "2401019"
         SONAR_KEY = "2401019-pathfinding-visulaizer"
-
-        // Prevent DockerHub rate limit
-        DOCKER_BUILD_ARG = "--build-arg NODE_MIRROR=ghcr.io/library/node:18-alpine"
     }
 
     stages {
 
-        stage('Docker Build') {
+        stage("CHECK") {
+            steps {
+                echo "DEBUG >>> PATHFINDER JENKINSFILE ACTIVE"
+            }
+        }
+
+        stage("Build Docker Image") {
             steps {
                 container('dind') {
                     sh '''
-                        echo ">>> Waiting for Docker daemon to be ready"
-                        while (! docker info > /dev/null 2>&1); do
-                          echo "Docker daemon not ready, sleeping..."
-                          sleep 1
-                        done
+                        echo "Waiting for Docker daemon..."
+                        sleep 12
 
-                        echo ">>> Building Docker Image (using GHCR node mirror)"
-                        docker build ${DOCKER_BUILD_ARG} -t ${FULL_IMAGE}:latest .
-                        docker images
+                        echo "Building frontend image"
+                        docker build -t pathfinder:latest .
                     '''
                 }
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage("SonarQube Analysis") {
             steps {
                 container('sonar-scanner') {
                     withCredentials([string(credentialsId: '2401019-pathfinding-visulaizer', variable: 'SONAR_TOKEN')]) {
                         sh '''
-                            echo ">>> Running SonarQube Scan"
                             sonar-scanner \
-                              -Dsonar.projectKey=${SONAR_KEY} \
-                              -Dsonar.sources=. \
-                              -Dsonar.host.url=http://sonarqube.imcc.svc.cluster.local \
-                              -Dsonar.login=$SONAR_TOKEN
+                                -Dsonar.projectKey='2401019-pathfinding-visulaizer' \
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=http://sonarqube.imcc.svc.cluster.local \
+                                -Dsonar.login=$SONAR_TOKEN
                         '''
                     }
                 }
             }
         }
 
-        stage('Push to Nexus') {
+        stage("Login to Nexus Registry") {
             steps {
                 container('dind') {
                     sh '''
-                        echo ">>> Logging into Nexus"
+                        docker --version
+                        sleep 8
                         docker login ${REGISTRY} -u admin -p Changeme@2025
-
-                        echo ">>> Tagging image"
-                        docker tag ${FULL_IMAGE}:latest ${FULL_IMAGE}:v1
-
-                        echo ">>> Pushing image"
-                        docker push ${FULL_IMAGE}:v1
                     '''
                 }
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage("Tag + Push Image") {
+            steps {
+                container('dind') {
+                    sh '''
+                        docker tag pathfinder:latest ${FULL_IMAGE}:latest
+                        docker push ${FULL_IMAGE}:latest
+                    '''
+                }
+            }
+        }
+
+        stage("Deploy to Kubernetes") {
             steps {
                 container('kubectl') {
                     sh '''
-                        echo ">>> Applying Deployment"
+                        echo "Applying Kubernetes deployment..."
                         kubectl apply -f pathfinder-deployment.yaml -n ${NAMESPACE}
 
-                        echo ">>> Waiting for rollout"
+                        echo "Checking rollout..."
                         kubectl rollout status deployment/pathfinder-deployment -n ${NAMESPACE}
                     '''
                 }
             }
         }
+
     }
 }
