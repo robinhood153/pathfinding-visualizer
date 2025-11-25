@@ -100,10 +100,10 @@ spec:
                     withCredentials([string(credentialsId: '2401019-pathfinding-visulaizer', variable: 'SONAR_TOKEN')]) {
                         sh '''
                             sonar-scanner \
-                                -Dsonar.projectKey='2401019-pathfinding-visulaizer' \
-                                -Dsonar.sources=. \
-                                -Dsonar.host.url=http://sonarqube.imcc.svc.cluster.local:9000 \
-                                -Dsonar.login=$SONAR_TOKEN
+                              -Dsonar.projectKey=2401019-pathfinding-visulaizer \
+                              -Dsonar.sources=. \
+                              -Dsonar.host.url=http://sonarqube.imcc.com \
+                              -Dsonar.token=sqp_bd839fcbc61687178d43aa94ec3dce811a6118a5
                         '''
                     }
                 }
