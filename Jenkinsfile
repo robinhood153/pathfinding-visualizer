@@ -57,6 +57,8 @@ spec:
             steps {
                 container('dind') {
                     sh '''
+                        echo ">>> Cleaning stale Docker PID"
+                        rm -f /var/run/docker.pid
                         echo ">>> Starting Docker daemon"
                         dockerd &
                         echo ">>> Waiting for Docker daemon to be ready"
@@ -81,7 +83,7 @@ spec:
                             sonar-scanner \
                               -Dsonar.projectKey=${SONAR_KEY} \
                               -Dsonar.sources=. \
-                              -Dsonar.host.url=http://sonarqube.imcc.com \
+                              -Dsonar.host.url=http://sonarqube.imcc.svc.cluster.local \
                               -Dsonar.login=$SONAR_TOKEN
                         '''
                     }
