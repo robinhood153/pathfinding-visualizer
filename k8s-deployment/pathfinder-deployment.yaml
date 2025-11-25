@@ -2,8 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pathfinder-deployment
-  labels:
-    app: pathfinder
+  namespace: "2401019"
 spec:
   replicas: 1
   selector:
@@ -14,8 +13,22 @@ spec:
       labels:
         app: pathfinder
     spec:
+      imagePullSecrets:
+        - name: nexus-secret
       containers:
         - name: pathfinder
-          image: pathfinding-visualizer:latest
+          image: nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/pathfinder:latest
           ports:
             - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 10
