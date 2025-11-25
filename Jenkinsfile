@@ -57,6 +57,13 @@ spec:
             steps {
                 container('dind') {
                     sh '''
+                        echo ">>> Starting Docker daemon"
+                        dockerd &
+                        echo ">>> Waiting for Docker daemon to be ready"
+                        while (! docker info > /dev/null 2>&1); do
+                          echo "Docker daemon not ready, sleeping..."
+                          sleep 1
+                        done
                         echo ">>> Building Docker Image"
                         docker build -t ${FULL_IMAGE}:latest .
                         docker images
