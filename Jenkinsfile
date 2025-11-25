@@ -10,7 +10,6 @@ metadata:
 spec:
   containers:
 
-    # ---------- KANIKO (build & push image) ----------
     - name: kaniko
       image: gcr.io/kaniko-project/executor:latest
       command:
@@ -22,7 +21,6 @@ spec:
         - name: workspace-volume
           mountPath: /home/jenkins/agent
 
-    # ---------- SONAR SCANNER ----------
     - name: sonar-scanner
       image: sonarsource/sonar-scanner-cli:latest
       command: ["cat"]
@@ -31,7 +29,6 @@ spec:
         - name: workspace-volume
           mountPath: /home/jenkins/agent
 
-    # ---------- KUBECTL ----------
     - name: kubectl
       image: bitnami/kubectl:latest
       command: ["cat"]
@@ -42,7 +39,6 @@ spec:
         - name: workspace-volume
           mountPath: /home/jenkins/agent
 
-    # ---------- JENKINS AGENT ----------
     - name: jnlp
       image: jenkins/inbound-agent:latest
       args: ["$(JENKINS_SECRET)", "$(JENKINS_NAME)"]
@@ -53,7 +49,7 @@ spec:
   volumes:
     - name: kaniko-secret
       secret:
-        secretName: nexus-secret   # must exist in cluster
+        secretName: nexus-secret
 
     - name: kubeconfig-secret
       secret:
@@ -75,7 +71,6 @@ spec:
 
     stages {
 
-        # ---------- BUILD WITH KANIKO ----------
         stage('Build Image with Kaniko') {
             steps {
                 container('kaniko') {
@@ -91,7 +86,6 @@ spec:
             }
         }
 
-        # ---------- SONARQUBE ----------
         stage('SonarQube Analysis') {
             steps {
                 container('sonar-scanner') {
@@ -109,7 +103,6 @@ spec:
             }
         }
 
-        # ---------- DEPLOY TO KUBERNETES ----------
         stage('Deploy to Kubernetes') {
             steps {
                 container('kubectl') {
