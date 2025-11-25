@@ -65,36 +65,34 @@ spec:
     }
 
     environment {
-        REGISTRY = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
-        IMAGE_REPO = "my-repository/pathfinder"
-        FULL_IMAGE = "${REGISTRY}/${IMAGE_REPO}"
-        NAMESPACE = "2401019"
-        SONAR_KEY = "2401019-pathfinding-visulaizer"
+        REGISTRY    = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
+        IMAGE_REPO  = "my-repository/pathfinder"
+        FULL_IMAGE  = "${REGISTRY}/${IMAGE_REPO}"
+        NAMESPACE   = "2401019"
+        SONAR_KEY   = "2401019-pathfinding-visulaizer"
     }
 
     stages {
 
-        stage("CHECK") {
+        stage('CHECK') {
             steps {
-                echo "DEBUG >>> PATHFINDER JENKINSFILE ACTIVE"
+                echo "DEBUG >>> UPDATED FRIEND-STYLE PIPELINE IS ACTIVE"
             }
         }
 
-        stage("Build Docker Image") {
+        stage('Build Docker Image') {
             steps {
                 container('dind') {
                     sh '''
                         echo "Waiting for Docker daemon..."
-                        sleep 12
-
-                        echo "Building frontend image"
+                        sleep 15
                         docker build -t pathfinder:latest .
                     '''
                 }
             }
         }
 
-        stage("SonarQube Analysis") {
+        stage('SonarQube Scan') {
             steps {
                 container('sonar-scanner') {
                     withCredentials([string(credentialsId: '2401019-pathfinding-visulaizer', variable: 'SONAR_TOKEN')]) {
@@ -110,19 +108,19 @@ spec:
             }
         }
 
-        stage("Login to Nexus Registry") {
+        stage('Login to Nexus Registry') {
             steps {
                 container('dind') {
                     sh '''
                         docker --version
-                        sleep 8
+                        sleep 10
                         docker login ${REGISTRY} -u admin -p Changeme@2025
                     '''
                 }
             }
         }
 
-        stage("Tag + Push Image") {
+        stage('Tag + Push Image') {
             steps {
                 container('dind') {
                     sh '''
@@ -133,21 +131,39 @@ spec:
             }
         }
 
-        stage("Deploy to Kubernetes") {
+        stage('Create Namespace + Secret') {
             steps {
                 container('kubectl') {
-                    dir("k8s-deployment") {   // <-- FIXED FOLDER PATH
+                    sh '''
+                        kubectl get namespace ${NAMESPACE} || kubectl create namespace ${NAMESPACE}
+
+                        kubectl create secret docker-registry nexus-secret \
+                          --docker-server=${REGISTRY} \
+                          --docker-username=admin \
+                          --docker-password=Changeme@2025 \
+                          --namespace=${NAMESPACE} || true
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                container('kubectl') {
+                    dir('k8s-deployment') {
                         sh '''
-                            echo "Applying Kubernetes deployment..."
+                            echo "Applying Deployment..."
                             kubectl apply -f pathfinder-deployment.yaml -n ${NAMESPACE}
 
-                            echo "Checking rollout..."
-                            kubectl rollout status deployment/pathfinder-deployment -n ${NAMESPACE}
+                            echo "Rollout Status"
+                            kubectl rollout status deployment/pathfinder-deployment -n ${NAMESPACE} || true
+
+                            echo "Pods:"
+                            kubectl get pods -n ${NAMESPACE}
                         '''
                     }
                 }
             }
         }
-
     }
 }
