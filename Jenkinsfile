@@ -131,6 +131,21 @@ spec:
             }
         }
 
+        stage('Create Namespace + Secret') {
+            steps {
+                container('kubectl') {
+                    sh '''
+                        kubectl get namespace ${NAMESPACE} || kubectl create namespace ${NAMESPACE}
+
+                        kubectl create secret docker-registry nexus-secret \
+                          --docker-server=${REGISTRY} \
+                          --docker-username=admin \
+                          --docker-password=Changeme@2025 \
+                          --namespace=${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                    '''
+                }
+            }
+        }
 
         stage('Deploy to Kubernetes') {
             steps {
