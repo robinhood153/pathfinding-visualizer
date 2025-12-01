@@ -141,7 +141,7 @@ spec:
                           --docker-server=${REGISTRY} \
                           --docker-username=admin \
                           --docker-password=Changeme@2025 \
-                          --namespace=${NAMESPACE} || true
+                          --namespace=${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
                     '''
                 }
             }
@@ -159,6 +159,22 @@ spec:
                             kubectl get pods -n ${NAMESPACE}
                         '''
                     }
+                }
+            }
+        }
+
+        stage('DEBUG POD STATUS') {
+            steps {
+                container('kubectl') {
+                    sh '''
+                        echo "=== POD LIST ==="
+                        kubectl get pods -n ${NAMESPACE}
+
+                        POD=$(kubectl get pods -n ${NAMESPACE} -o jsonpath="{.items[0].metadata.name}")
+
+                        echo "=== DESCRIBE POD ==="
+                        kubectl describe pod $POD -n ${NAMESPACE}
+                    '''
                 }
             }
         }
