@@ -155,9 +155,6 @@ spec:
                             echo "Applying Deployment..."
                             kubectl apply -f pathfinder-deployment.yaml -n ${NAMESPACE}
 
-                            echo "Rollout Status"
-                            kubectl rollout status deployment/pathfinder-deployment -n ${NAMESPACE} || true
-
                             echo "Pods:"
                             kubectl get pods -n ${NAMESPACE}
                         '''
