@@ -153,10 +153,24 @@ spec:
                             echo "Applying Deployment..."
                             kubectl apply -f pathfinder-deployment.yaml -n ${NAMESPACE}
 
-                            echo "Pods:"
+                            echo "Current Pods:"
                             kubectl get pods -n ${NAMESPACE}
                         '''
                     }
+                }
+            }
+        }
+
+        stage('Debug Kubernetes Pods') {
+            steps {
+                container('kubectl') {
+                    sh '''
+                        echo "================ POD STATUS ================"
+                        kubectl get pods -n ${NAMESPACE}
+
+                        echo "================ POD EVENTS ================"
+                        kubectl describe pod -n ${NAMESPACE} | tail -n 60
+                    '''
                 }
             }
         }
