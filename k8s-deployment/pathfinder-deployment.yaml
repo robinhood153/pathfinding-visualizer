@@ -16,28 +16,29 @@ spec:
         app: pathfinder
     spec:
       imagePullSecrets:
-      - name: nexus-secret
+        - name: nexus-secret
       containers:
-      - name: pathfinder
-        image: nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/pathfinder:latest
-        ports:
-        - containerPort: 3000
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 3000
-          initialDelaySeconds: 10
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 3000
-          initialDelaySeconds: 30
-          periodSeconds: 30
-        resources:
-          requests:
-            cpu: "250m"
-            memory: "256Mi"
-          limits:
-            cpu: "500m"
-            memory: "512Mi"
+        - name: pathfinder
+          image: nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/pathfinder:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
