@@ -6,6 +6,7 @@ apiVersion: v1
 kind: Pod
 spec:
   containers:
+
   - name: sonar-scanner
     image: sonarsource/sonar-scanner-cli
     command: ["cat"]
@@ -17,7 +18,6 @@ spec:
     tty: true
     securityContext:
       runAsUser: 0
-      readOnlyRootFilesystem: false
     env:
     - name: KUBECONFIG
       value: /kube/config
@@ -33,12 +33,27 @@ spec:
     env:
     - name: DOCKER_TLS_CERTDIR
       value: ""
+    args:
+    - "--storage-driver=overlay2"
     volumeMounts:
     - name: docker-config
       mountPath: /etc/docker/daemon.json
       subPath: daemon.json
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+
+  - name: jnlp
+    image: jenkins/inbound-agent:3309.v27b_9314fd1a_4-1
+    env:
+    - name: JENKINS_AGENT_WORKDIR
+      value: "/home/jenkins/agent"
+    volumeMounts:
+    - mountPath: "/home/jenkins/agent"
+      name: workspace-volume
 
   volumes:
+  - name: workspace-volume
+    emptyDir: {}
   - name: docker-config
     configMap:
       name: docker-daemon-config
@@ -50,40 +65,34 @@ spec:
     }
 
     environment {
-        APP_NAME        = "pathfinder"
-        IMAGE_TAG       = "latest"
-        REGISTRY_URL    = "127.0.0.1:30085"
-        REGISTRY_REPO   = "2401019"
-        SONAR_PROJECT   = "2401019-pathfinding-visualizer"
-        SONAR_HOST_URL  = "http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000"
+        REGISTRY    = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
+        IMAGE_REPO  = "my-repository/pathfinder"
+        FULL_IMAGE  = "${REGISTRY}/${IMAGE_REPO}"
+        NAMESPACE   = "2401019"
+        SONAR_KEY   = "2401019-pathfinding-visualizer"
     }
 
     stages {
+
+        stage('CHECK PIPELINE') {
+            steps {
+                echo "✅ Stable Jenkins Kubernetes Pipeline Running"
+            }
+        }
 
         stage('Build Docker Image') {
             steps {
                 container('dind') {
                     sh '''
+                        echo "Waiting for Docker daemon..."
                         sleep 15
-                        docker build -t $APP_NAME:$IMAGE_TAG .
-                        docker images
+                        docker build -t pathfinder:latest .
                     '''
                 }
             }
         }
 
-        stage('Run Tests in Docker') {
-            steps {
-                container('dind') {
-                    sh '''
-                         echo "Running tests... (Add actual test commands here if available)"
-                         # Example: docker run --rm $APP_NAME:$IMAGE_TAG npm test
-                    '''
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
+        stage('SonarQube Scan') {
             steps {
                 container('sonar-scanner') {
                     withCredentials([
@@ -91,48 +100,60 @@ spec:
                     ]) {
                         sh '''
                             sonar-scanner \
-                              -Dsonar.projectKey=$SONAR_PROJECT \
-                              -Dsonar.host.url=$SONAR_HOST_URL \
-                              -Dsonar.login=$SONAR_TOKEN \
+                              -Dsonar.projectKey=${SONAR_KEY} \
                               -Dsonar.sources=. \
-                              -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
+                              -Dsonar.host.url=http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000 \
+                              -Dsonar.login=$SONAR_TOKEN
                         '''
                     }
                 }
             }
         }
 
-        stage('Login to Docker Registry') {
+        stage('Login to Nexus Registry') {
             steps {
                 container('dind') {
                     sh '''
-                        docker login $REGISTRY_URL -u admin -p Changeme@2025
+                        docker login ${REGISTRY} -u admin -p Changeme@2025
                     '''
                 }
             }
         }
 
-        stage('Build - Tag - Push Image') {
+        stage('Tag & Push Image') {
             steps {
                 container('dind') {
                     sh '''
-                        docker tag $APP_NAME:$IMAGE_TAG $REGISTRY_URL/$REGISTRY_REPO/$APP_NAME:$IMAGE_TAG
-
-                        docker push $REGISTRY_URL/$REGISTRY_REPO/$APP_NAME:$IMAGE_TAG
-                        
-                        docker images
+                        docker tag pathfinder:latest ${FULL_IMAGE}:latest
+                        docker push ${FULL_IMAGE}:latest
                     '''
                 }
             }
         }
 
-        stage('Deploy Application') {
+        stage('Create Namespace & Secret') {
+            steps {
+                container('kubectl') {
+                    sh '''
+                        kubectl get namespace ${NAMESPACE} || kubectl create namespace ${NAMESPACE}
+
+                        kubectl create secret docker-registry nexus-secret \
+                          --docker-server=${REGISTRY} \
+                          --docker-username=admin \
+                          --docker-password=Changeme@2025 \
+                          --namespace=${NAMESPACE} || true
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
             steps {
                 container('kubectl') {
                     dir('k8s-deployment') {
                         sh '''
-                            kubectl apply -f .
-                            # kubectl rollout status deployment/pathfinder -n 2401019
+                            kubectl apply -f pathfinder-deployment.yaml -n ${NAMESPACE}
+                            kubectl get pods -n ${NAMESPACE}
                         '''
                     }
                 }
