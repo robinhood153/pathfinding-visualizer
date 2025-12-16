@@ -54,7 +54,7 @@ spec:
         IMAGE_TAG       = "latest"
         REGISTRY_URL    = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
         REGISTRY_REPO   = "2401019"
-        SONAR_PROJECT   = "2401019_pathfinding-visualizer"
+        SONAR_PROJECT   = "2401019-pathfinding-visulaizer"
         SONAR_HOST_URL  = "http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000"
     }
 
