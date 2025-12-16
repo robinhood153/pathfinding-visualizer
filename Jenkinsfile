@@ -99,7 +99,7 @@ spec:
                         sonar-scanner \
                           -Dsonar.projectKey=2401019-pathfinding-visulaizer \
                           -Dsonar.sources=. \
-                          -Dsonar.host.url=http://sonarqube.imcc.com \
+                          -Dsonar.host.url=http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000 \
                           -Dsonar.token=sqp_57f01acf156e35b95e72b31427a301b8b85635c9
                     '''
                 }
