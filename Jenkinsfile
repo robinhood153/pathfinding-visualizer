@@ -65,11 +65,13 @@ spec:
     }
 
     environment {
-        REGISTRY    = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
-        IMAGE_REPO  = "my-repository/pathfinder"
-        FULL_IMAGE  = "${REGISTRY}/${IMAGE_REPO}"
-        NAMESPACE   = "2401019"
-        SONAR_KEY   = "2401019-pathfinding-visualizer"
+        REGISTRY   = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
+        IMAGE_REPO = "my-repository/pathfinder"
+        FULL_IMAGE = "${REGISTRY}/${IMAGE_REPO}"
+        NAMESPACE  = "2401019"
+        SONAR_KEY  = "2401019-pathfinding-visualizer"
+        SONAR_URL  = "http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000"
+        SONAR_TOKEN = "sqp_57f01acf156e35b95e72b31427a301b8b85635c9"
     }
 
     stages {
@@ -95,17 +97,13 @@ spec:
         stage('SonarQube Scan') {
             steps {
                 container('sonar-scanner') {
-                    withCredentials([
-                        string(credentialsId: 'sonar-token-2401019', variable: 'SONAR_TOKEN')
-                    ]) {
-                        sh '''
-                            sonar-scanner \
-                              -Dsonar.projectKey=${SONAR_KEY} \
-                              -Dsonar.sources=. \
-                              -Dsonar.host.url=http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000 \
-                              -Dsonar.login=$SONAR_TOKEN
-                        '''
-                    }
+                    sh '''
+                        sonar-scanner \
+                          -Dsonar.projectKey=${SONAR_KEY} \
+                          -Dsonar.sources=. \
+                          -Dsonar.host.url=${SONAR_URL} \
+                          -Dsonar.login=${SONAR_TOKEN}
+                    '''
                 }
             }
         }
@@ -114,7 +112,6 @@ spec:
             steps {
                 container('dind') {
                     sh '''
-                        docker --version
                         docker login ${REGISTRY} -u admin -p Changeme@2025
                         docker tag pathfinder:latest ${FULL_IMAGE}:latest
                         docker push ${FULL_IMAGE}:latest
@@ -144,16 +141,9 @@ spec:
                 container('kubectl') {
                     dir('k8s-deployment') {
                         sh '''
-                            echo "Applying ALL Kubernetes manifests..."
                             kubectl apply -f .
-
-                            echo "Pods:"
                             kubectl get pods -n ${NAMESPACE}
-
-                            echo "Services:"
                             kubectl get svc -n ${NAMESPACE}
-
-                            echo "Ingress:"
                             kubectl get ingress -n ${NAMESPACE}
                         '''
                     }
