@@ -65,18 +65,18 @@ spec:
     }
 
     environment {
-        REGISTRY   = "127.0.0.1:30085"
-        IMAGE_REPO = "2401019/pathfinder"
-        FULL_IMAGE = "${REGISTRY}/${IMAGE_REPO}"
-        NAMESPACE  = "2401019"
-        SONAR_KEY  = "2401019-pathfinding-visulaizer"
+        REGISTRY    = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
+        IMAGE_REPO  = "my-repository/pathfinder"
+        FULL_IMAGE  = "${REGISTRY}/${IMAGE_REPO}"
+        NAMESPACE   = "2401019"
+        SONAR_KEY   = "2401019-pathfinding-visulaizer"
     }
 
     stages {
 
         stage('CHECK') {
             steps {
-                echo "DEBUG >>> FRIEND-STYLE NODEPORT PIPELINE ACTIVE"
+                echo "DEBUG >>> UPDATED FRIEND-STYLE PIPELINE IS ACTIVE"
             }
         }
 
@@ -97,7 +97,7 @@ spec:
                 container('sonar-scanner') {
                     sh '''
                         sonar-scanner \
-                          -Dsonar.projectKey=${SONAR_KEY} \
+                          -Dsonar.projectKey=2401019-pathfinding-visulaizer \
                           -Dsonar.sources=. \
                           -Dsonar.host.url=http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000 \
                           -Dsonar.token=sqp_57f01acf156e35b95e72b31427a301b8b85635c9
@@ -110,6 +110,8 @@ spec:
             steps {
                 container('dind') {
                     sh '''
+                        docker --version
+                        sleep 10
                         docker login ${REGISTRY} -u admin -p Changeme@2025
                     '''
                 }
@@ -148,11 +150,27 @@ spec:
                 container('kubectl') {
                     dir('k8s-deployment') {
                         sh '''
+                            echo "Applying Deployment..."
                             kubectl apply -f pathfinder-deployment.yaml -n ${NAMESPACE}
-                            kubectl delete pod -n ${NAMESPACE} --all
+
+                            echo "Current Pods:"
                             kubectl get pods -n ${NAMESPACE}
                         '''
                     }
+                }
+            }
+        }
+
+        stage('Debug Kubernetes Pods') {
+            steps {
+                container('kubectl') {
+                    sh '''
+                        echo "================ POD STATUS ================"
+                        kubectl get pods -n ${NAMESPACE}
+
+                        echo "================ POD EVENTS ================"
+                        kubectl describe pod -n ${NAMESPACE} | tail -n 60
+                    '''
                 }
             }
         }
