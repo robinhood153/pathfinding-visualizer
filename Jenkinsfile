@@ -86,15 +86,6 @@ spec:
         stage('SonarQube Analysis') {
             steps {
                 container('sonar-scanner') {
-<<<<<<< HEAD
-                    sh '''
-                        sonar-scanner \
-                          -Dsonar.projectKey=2401019-pathfinding-visulaizer \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000 \
-                          -Dsonar.token=sqp_57f01acf156e35b95e72b31427a301b8b85635c9
-                    '''
-=======
                     withCredentials([
                         string(credentialsId: 'sonar-token-2401019', variable: 'SONAR_TOKEN')
                     ]) {
@@ -107,7 +98,6 @@ spec:
                               -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
                         '''
                     }
->>>>>>> b1f864a (feat: implement pathfinding visualizer application with multiple algorithms, UI, and Kubernetes deployment.)
                 }
             }
         }
