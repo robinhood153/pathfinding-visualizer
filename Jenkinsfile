@@ -65,7 +65,7 @@ spec:
     }
 
     environment {
-        REGISTRY    = "127.0.0.1:30085"
+        REGISTRY    = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
         IMAGE_REPO  = "my-repository/pathfinder"
         FULL_IMAGE  = "${REGISTRY}/${IMAGE_REPO}"
         NAMESPACE   = "2401019"
