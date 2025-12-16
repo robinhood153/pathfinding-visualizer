@@ -1,8 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: "2401019"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pathfinder-deployment
+  name: pathfinder
   namespace: "2401019"
+  labels:
+    app: pathfinder
 spec:
   replicas: 1
   selector:
@@ -14,21 +21,28 @@ spec:
         app: pathfinder
     spec:
       imagePullSecrets:
-        - name: nexus-secret
+      - name: nexus-secret
       containers:
-        - name: pathfinder
-          image: nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/pathfinder:latest
-          ports:
-            - containerPort: 3000
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 3000
-            initialDelaySeconds: 10
-            periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 3000
-            initialDelaySeconds: 20
-            periodSeconds: 10
+      - name: pathfinder
+        image: 127.0.0.1:30085/2401019/pathfinder:latest
+        ports:
+        - containerPort: 3000
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "1"
+            memory: "1Gi"
