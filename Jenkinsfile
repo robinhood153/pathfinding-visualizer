@@ -69,14 +69,14 @@ spec:
         IMAGE_REPO  = "my-repository/pathfinder"
         FULL_IMAGE  = "${REGISTRY}/${IMAGE_REPO}"
         NAMESPACE   = "2401019"
-        SONAR_KEY   = "2401019-pathfinding-visulaizer"
+        SONAR_KEY   = "2401019-pathfinding-visualizer"
     }
 
     stages {
 
-        stage('CHECK') {
+        stage('CHECK PIPELINE') {
             steps {
-                echo "DEBUG >>> UPDATED FRIEND-STYLE PIPELINE IS ACTIVE"
+                echo "✅ Jenkins Kubernetes pipeline started successfully"
             }
         }
 
@@ -95,33 +95,27 @@ spec:
         stage('SonarQube Scan') {
             steps {
                 container('sonar-scanner') {
-                    sh '''
-                        sonar-scanner \
-                          -Dsonar.projectKey=2401019-pathfinding-visulaizer \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000 \
-                          -Dsonar.token=sqp_57f01acf156e35b95e72b31427a301b8b85635c9
-                    '''
+                    withCredentials([
+                        string(credentialsId: 'sonar-token-2401019', variable: 'SONAR_TOKEN')
+                    ]) {
+                        sh '''
+                            sonar-scanner \
+                              -Dsonar.projectKey=${SONAR_KEY} \
+                              -Dsonar.sources=. \
+                              -Dsonar.host.url=http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000 \
+                              -Dsonar.login=$SONAR_TOKEN
+                        '''
+                    }
                 }
             }
         }
 
-        stage('Login to Nexus Registry') {
+        stage('Login, Tag & Push Image') {
             steps {
                 container('dind') {
                     sh '''
                         docker --version
-                        sleep 10
                         docker login ${REGISTRY} -u admin -p Changeme@2025
-                    '''
-                }
-            }
-        }
-
-        stage('Tag + Push Image') {
-            steps {
-                container('dind') {
-                    sh '''
                         docker tag pathfinder:latest ${FULL_IMAGE}:latest
                         docker push ${FULL_IMAGE}:latest
                     '''
@@ -129,7 +123,7 @@ spec:
             }
         }
 
-        stage('Create Namespace + Secret') {
+        stage('Create Namespace & Registry Secret') {
             steps {
                 container('kubectl') {
                     sh '''
@@ -150,11 +144,17 @@ spec:
                 container('kubectl') {
                     dir('k8s-deployment') {
                         sh '''
-                            echo "Applying Deployment..."
-                            kubectl apply -f pathfinder-deployment.yaml -n ${NAMESPACE}
+                            echo "Applying ALL Kubernetes manifests..."
+                            kubectl apply -f .
 
                             echo "Pods:"
                             kubectl get pods -n ${NAMESPACE}
+
+                            echo "Services:"
+                            kubectl get svc -n ${NAMESPACE}
+
+                            echo "Ingress:"
+                            kubectl get ingress -n ${NAMESPACE}
                         '''
                     }
                 }
